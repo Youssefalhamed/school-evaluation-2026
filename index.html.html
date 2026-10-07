@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة متابعة جاهزية التقويم المدرسي - يوسف القرني</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Cairo) -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        etec: {
+                            navy: '#0F2A4A',
+                            darkNavy: '#0A1D34',
+                            gold: '#C59B27',
+                            goldHover: '#B0881E',
+                            teal: '#107C41',
+                            bg: '#F4F7F9',
+                            cardBg: '#FFFFFF',
+                            textDark: '#1E293B',
+                            textMuted: '#64748B'
+                        }
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #F4F7F9;
+            color: #1E293B;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .etec-gradient {
+            background: linear-gradient(135deg, #0F2A4A 0%, #1A406D 100%);
+        }
+        .etec-gold-gradient {
+            background: linear-gradient(135deg, #C59B27 0%, #E2B842 100%);
+        }
+        .custom-checkbox:checked {
+            background-color: #C59B27;
+            border-color: #C59B27;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white;
+            }
+            .card-box {
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="pb-12 min-h-screen">
+
+    <!-- Header Section -->
+    <header class="etec-gradient text-white shadow-lg sticky top-0 z-50 border-b-4 border-etec-gold">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 text-etec-gold text-2xl font-bold">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl sm:text-2xl font-bold tracking-tight">لوحة متابعة جاهزية التقويم المدرسي</h1>
+                            <span id="cloudStatusBadge" class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> متصل بالسحابة
+                            </span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-gray-300">إعداد وتصميم: أ. يوسف القرني | ثانوية الملك عبدالله - مسارات - بيشة</p>
+                    </div>
+                </div>
+
+                <!-- Overall Progress Card in Header -->
+                <div class="bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/20 flex items-center gap-4 w-full md:w-auto justify-between">
+                    <div>
+                        <div class="text-xs text-gray-300">نسبة الجاهزية الكلية</div>
+                        <div class="text-2xl font-extrabold text-etec-gold" id="totalPercent">0%</div>
+                    </div>
+                    <div class="w-24 bg-white/20 rounded-full h-3 overflow-hidden">
+                        <div id="totalProgressBar" class="bg-etec-gold h-full rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+
+        <!-- Controls / Actions Bar -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-wrap gap-3 items-center justify-between no-print">
+            <div class="flex items-center gap-2 text-sm text-etec-textMuted font-semibold">
+                <i class="fa-solid fa-sliders text-etec-navy"></i>
+                <span>أدوات التحكّم والمتابعة:</span>
+            </div>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                <button onclick="expandAll()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition text-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-angles-down"></i> فتح الكل
+                </button>
+                <button onclick="collapseAll()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition text-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-angles-up"></i> إغلاق الكل
+                </button>
+                <button onclick="window.print()" class="px-3 py-1.5 bg-etec-gold hover:bg-etec-goldHover text-etec-navy font-bold text-xs rounded-lg transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> طباعة / PDF
+                </button>
+                <button onclick="resetData()" class="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> إعادة ضبط
+                </button>
+            </div>
+        </div>
+
+        <!-- Part 1: Executive Directives Summary -->
+        <section class="mb-8 card-box bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer bg-slate-50/50" onclick="toggleSection('sec1')">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-etec-navy/10 text-etec-navy flex items-center justify-center font-bold">
+                        1
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-etec-navy">توجيهات ومبادئ اللقاء التنسيقي للتقويم</h2>
+                        <p class="text-xs text-etec-textMuted">الركائز الأساسية لبناء الجاهزية المستدامة للمدرسة</p>
+                    </div>
+                </div>
+                <i id="sec1-icon" class="fa-solid fa-chevron-down text-etec-textMuted transition-transform duration-300"></i>
+            </div>
+
+            <div id="sec1-content" class="p-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="directivesList">
+                    <!-- Cards will be populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Part 2: Tools & Evidence Checklists -->
+        <section class="mb-8 card-box bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer bg-slate-50/50" onclick="toggleSection('sec2')">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-etec-gold/20 text-etec-navy flex items-center justify-center font-bold">
+                        2
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-etec-navy">أدوات وشواهد التقويم الـ 5 الأساسية</h2>
+                        <p class="text-xs text-etec-textMuted">الوثائق، الاستبانات، الملاحظة الصفية/البيئية، المقابلات، والمؤشرات الرقمية</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="sec2ProgressText" class="text-xs font-bold text-etec-gold bg-etec-navy px-2.5 py-1 rounded-full">0/0</span>
+                    <i id="sec2-icon" class="fa-solid fa-chevron-down text-etec-textMuted transition-transform duration-300"></i>
+                </div>
+            </div>
+
+            <div id="sec2-content" class="p-5 space-y-6">
+                <!-- Sections dynamically loaded -->
+            </div>
+        </section>
+
+        <!-- Part 3: Executive Action Plan & Domains -->
+        <section class="mb-8 card-box bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer bg-slate-50/50" onclick="toggleSection('sec3')">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                        3
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-etec-navy">خطة العمل والتوزيع حسب المجالات الأربعة</h2>
+                        <p class="text-xs text-etec-textMuted">الإدارة المدرسية، التعليم والتعلم، نواتج التعلم، والبيئة المدرسية</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="sec3ProgressText" class="text-xs font-bold text-etec-navy bg-emerald-100 px-2.5 py-1 rounded-full">0/0</span>
+                    <i id="sec3-icon" class="fa-solid fa-chevron-down text-etec-textMuted transition-transform duration-300"></i>
+                </div>
+            </div>
+
+            <div id="sec3-content" class="p-5 space-y-6">
+                <!-- Action plan loaded by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-etec-textMuted mt-12 py-6 border-t border-gray-200">
+        <p>تم التصميم والتطوير خصيصاً لمتابعة أعمال الجاهزية للتقويم المدرسي الخارجي والذاتي 2026م</p>
+        <p class="mt-1 font-semibold text-etec-navy">إعداد أ. يوسف القرني</p>
+    </footer>
+
+    <!-- Application & Firebase Script -->
+    <script>
+        // --- 1. Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDqjOy5HSoICMYxrc1tD88B3txMrXfqWhQ",
+            authDomain: "school-evaluation-2026.firebaseapp.com",
+            databaseURL: "https://school-evaluation-2026-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "school-evaluation-2026",
+            storageBucket: "school-evaluation-2026.firebasestorage.app",
+            messagingSenderId: "532732815106",
+            appId: "1:532732815106:web:3b57fa05f50664ccc2441b"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const evaluationRef = db.ref('evaluation_data');
+
+        // --- Data Structures ---
+        const directivesData = [
+            {
+                title: "استدامة الجاهزية",
+                icon: "fa-regular fa-clock",
+                desc: "التقويم يُنفذ مرة كل 3 سنوات؛ المطلوب بناء جاهزية مستدامة تحاكي الممارسات اليومية الواقعية وليس تجهيزاً وقتياً."
+            },
+            {
+                title: "الاعتماد على الدليل الاسترشادي",
+                icon: "fa-solid fa-book-open",
+                desc: "الاستفادة المباشرة من دليل «الإجراءات التنفيذية لمؤشرات التقويم المدرسي» لتوفير كافة المتطلبات والشواهد."
+            },
+            {
+                title: "التوثيق الواقعي",
+                icon: "fa-solid fa-folder-check",
+                desc: "توظيف الوثائق والملفات والشواهد التي تثبت التنفيذ الفعلي الداخلي دون تكلف أو المبالغة في التنسيق."
+            },
+            {
+                title: "التعاون مع أخصائي التميز",
+                icon: "fa-solid fa-handshake",
+                desc: "التواصل مع أخصائي/ة التميز وتطبيق أداة الزيارة الإلكترونية لتحديد فرص التحسين قبل زيارة فريق التقويم."
+            }
+        ];
+
+        const toolsData = [
+            {
+                id: "tool_1",
+                title: "1. أداة تحليل وثائق المدرسة (الملفات المكتوبة والمستندات)",
+                badge: "الوثائق والملفات",
+                items: [
+                    { id: "t1_1", name: "ملفات الإدارة والخطط العامة", detail: "الخطة التشغيلية، متابعة الأداء، التطوير المهني، التوجيه الطلابي، النشاط، البرامج الإثرائية." },
+                    { id: "t1_2", name: "ملفات الأمن والسلامة", detail: "خطة الأمن والسلامة، تجارب الإخلاء، نماذج التجهيزات والتدريب، سجلات حماية المتعلم." },
+                    { id: "t1_3", name: "ملفات الفاعلية التعليمية", detail: "عينات ملفات إنجاز المعلمين والمتعلمين، متابعة أداء الطلبة، نماذج التقويم، تقارير الممارسات التأملية." }
+                ]
+            },
+            {
+                id: "tool_2",
+                title: "2. الاستبانات الإلكترونية (منصة تميز)",
+                badge: "الاستبانات الرقمية",
+                items: [
+                    { id: "t2_1", name: "تعبئة الاستبانات عبر المنصة", detail: "مشاركة الفئات الثلاث: (استبانة المعلم، استبانة المتعلم، استبانة الأسرة)." },
+                    { id: "t2_2", name: "التوعية الشاملة بالاستبانات", detail: "نشر التوعية بأهمية الشفافية، تعبئة الاستبانة كاملاً، ورفع نسب مشاركة جميع المستهدفين." }
+                ]
+            },
+            {
+                id: "tool_3",
+                title: "3. الملاحظات (الصفية والبيئة المدرسية)",
+                badge: "الملاحظات والميدان",
+                items: [
+                    { id: "t3_1", name: "الملاحظة الصفية", detail: "التدريس النشط، التعزيز، المهارات القرائية والعددية، الدمج الرقمي، التغذية الراجعة، تكافؤ الفرص." },
+                    { id: "t3_2", name: "ملاحظة البيئة المدرسية", detail: "سلامة المبنى، المعامل، تنظيم الفصول، التجهيزات الرياضية، النظافة العامة، المقصف المدرسي." }
+                ]
+            },
+            {
+                id: "tool_4",
+                title: "4. المقابلات الشخصية",
+                badge: "المقابلات",
+                items: [
+                    { id: "t4_1", name: "إجراء المقابلات مع الفئات الـ 4", detail: "تأهيل وتجهيز (الإدارة المدرسية، المعلمون، الموجه الطلابي، ومجموعات تركيز الطلاب)." }
+                ]
+            },
+            {
+                id: "tool_5",
+                title: "5. الاختبارات والرخص المهنية (المؤشرات الرقمية)",
+                badge: "المؤشرات الرقمية",
+                items: [
+                    { id: "t5_1", name: "نتائج الاختبارات الوطنية نافس", detail: "تحليل نتائج ومؤشرات نافس (للمرحلتين الابتدائية والمتوسطة)." },
+                    { id: "t5_2", name: "نتائج القدرات والتحصيلي", detail: "متابعة وتحليل نتائج اختبارات القدرات والتحصيلي (للمرحلة الثانوية)." },
+                    { id: "t5_3", name: "نسبة الرخص المهنية", detail: "حصر ومتابعة نسبة الحاصلين على الرخص المهنية من المعلمين والمعلمات." }
+                ]
+            }
+        ];
+
+        const actionPlanData = [
+            {
+                id: "plan_1",
+                title: "تشكيل وتفعيل فريق التقويم والتميز",
+                badge: "التنظيم والتوزيع",
+                items: [
+                    { id: "p1_1", name: "توزيع الأدوار والمسؤوليات", detail: "توزيع مهام تجهيز ومتابعة الشواهد والملفات بين جميع أعضاء فريق التميز بالمدرسة." }
+                ]
+            },
+            {
+                id: "plan_2",
+                title: "فهرسة الملفات حسب المجالات الأربعة",
+                badge: "الفهرسة الميدانية",
+                items: [
+                    { id: "p2_1", name: "مجال الإدارة المدرسية", detail: "الخطط التشغيلية، برامج تعزيز القيم والهوية الوطنية، سجلات الانضباط، والقيادة." },
+                    { id: "p2_2", name: "مجال التعليم والتعلم", detail: "استراتيجيات التدريس النشط، تفعيل التقنية، التغذية الراجعة، ومهارات التفكير والأساسيات." },
+                    { id: "p2_3", name: "مجال نواتج التعلم", detail: "خطط ودعم نافس/القدرات، سجلات السلوك، الأنشطة التطوعية والصحية." },
+                    { id: "p2_4", name: "مجال البيئة المدرسية", detail: "خطط وتقارير الأمن والسلامة والإخلاء، تقارير الصيانة، والنظافة البيئية." }
+                ]
+            },
+            {
+                id: "plan_3",
+                title: "تطبيق أداة الزيارة الإلكترونية (التقويم الذاتي)",
+                badge: "التقويم الذاتي",
+                items: [
+                    { id: "p3_1", name: "إجراء تقييم المحاكاة الداخلي", detail: "تطبيق زيارة محاكاة بالتعاون مع أخصائي التميز لرصد الثغرات وفرص التحسين وتداركها فوراً." }
+                ]
+            }
+        ];
+
+        // --- State Manager ---
+        let appState = {
+            statuses: {}, // id: "completed" | "in_progress" | "not_started" | "obstacle"
+            notes: {}     // id: string
+        };
+
+        // --- Initialize App & Firebase Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDirectives();
+            renderTools();
+            renderActionPlan();
+            setupFirebaseSync();
+        });
+
+        function setupFirebaseSync() {
+            // Real-time synchronization listener
+            evaluationRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    appState.statuses = data.statuses || {};
+                    appState.notes = data.notes || {};
+                }
+                renderTools();
+                renderActionPlan();
+                updateCalculations();
+            }, (error) => {
+                console.error("Firebase Sync Error:", error);
+                document.getElementById('cloudStatusBadge').innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span> غير متصل`;
+                document.getElementById('cloudStatusBadge').className = "text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1";
+            });
+        }
+
+        function syncToFirebase() {
+            evaluationRef.set({
+                statuses: appState.statuses,
+                notes: appState.notes,
+                lastUpdated: new Date().toISOString()
+            });
+        }
+
+        function resetData() {
+            if (confirm("هل أنت تأكد من إعادة ضبط كافة البيانات وإفراغ المدخلات على السحابة؟")) {
+                appState = { statuses: {}, notes: {} };
+                syncToFirebase();
+                showToast('تمت إعادة الضبط بنجاح');
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 left-5 bg-etec-navy text-white text-xs px-4 py-2.5 rounded-xl shadow-xl z-50 border border-etec-gold transition-opacity duration-300';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-etec-gold me-2"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // --- Render Functions ---
+        function renderDirectives() {
+            const container = document.getElementById('directivesList');
+            container.innerHTML = directivesData.map(item => `
+                <div class="bg-slate-50 border border-slate-200/80 p-4 rounded-xl hover:border-etec-gold/50 transition duration-200">
+                    <div class="w-8 h-8 rounded-lg bg-etec-navy text-etec-gold flex items-center justify-center text-sm font-bold mb-2">
+                        <i class="${item.icon}"></i>
+                    </div>
+                    <h3 class="font-bold text-sm text-etec-navy mb-1">${item.title}</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">${item.desc}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderTools() {
+            const container = document.getElementById('sec2-content');
+            container.innerHTML = toolsData.map(group => renderGroupCard(group)).join('');
+        }
+
+        function renderActionPlan() {
+            const container = document.getElementById('sec3-content');
+            container.innerHTML = actionPlanData.map(group => renderGroupCard(group)).join('');
+        }
+
+        function renderGroupCard(group) {
+            return `
+                <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/40">
+                    <div class="bg-slate-100/80 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
+                        <span class="font-bold text-sm text-etec-navy flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-etec-gold"></i>
+                            ${group.title}
+                        </span>
+                        <span class="text-[11px] bg-etec-navy text-white px-2.5 py-0.5 rounded-full font-semibold">
+                            ${group.badge}
+                        </span>
+                    </div>
+                    <div class="p-3 sm:p-4 divide-y divide-slate-200/60">
+                        ${group.items.map(item => renderItemRow(item)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderItemRow(item) {
+            const currentStatus = appState.statuses[item.id] || 'not_started';
+            const currentNote = appState.notes[item.id] || '';
+
+            return `
+                <div class="py-3 first:pt-0 last:pb-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="flex-1">
+                        <div class="flex items-start gap-2.5">
+                            <input type="checkbox" id="chk_${item.id}" 
+                                ${currentStatus === 'completed' ? 'checked' : ''} 
+                                onchange="handleCheckbox('${item.id}', this.checked)"
+                                class="custom-checkbox mt-1 w-4 h-4 rounded text-etec-gold focus:ring-etec-gold cursor-pointer accent-amber-600">
+                            <div>
+                                <label for="chk_${item.id}" class="text-xs sm:text-sm font-bold text-slate-800 cursor-pointer block">
+                                    ${item.name}
+                                </label>
+                                <p class="text-xs text-slate-500 mt-0.5">${item.detail}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:w-auto w-full no-print">
+                        <!-- Status Selector -->
+                        <select onchange="handleStatusChange('${item.id}', this.value)" 
+                            class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold focus:outline-none focus:border-etec-gold">
+                            <option value="not_started" ${currentStatus === 'not_started' ? 'selected' : ''}>⏳ لم يبدأ</option>
+                            <option value="in_progress" ${currentStatus === 'in_progress' ? 'selected' : ''}>🔄 قيد التنفيذ</option>
+                            <option value="completed" ${currentStatus === 'completed' ? 'selected' : ''}>✅ تم الإنجاز</option>
+                            <option value="obstacle" ${currentStatus === 'obstacle' ? 'selected' : ''}>⚠️ يوجد عائق</option>
+                        </select>
+
+                        <!-- Note Input -->
+                        <input type="text" 
+                            placeholder="سبب / ملاحظات..." 
+                            value="${escapeHtml(currentNote)}"
+                            onchange="handleNoteChange('${item.id}', this.value)"
+                            class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-etec-gold w-full sm:w-48">
+                    </div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(str) {
+            return str ? str.replace(/"/g, '&quot;') : '';
+        }
+
+        // --- Event Handlers ---
+        function handleCheckbox(id, isChecked) {
+            appState.statuses[id] = isChecked ? 'completed' : 'not_started';
+            syncToFirebase();
+        }
+
+        function handleStatusChange(id, value) {
+            appState.statuses[id] = value;
+            syncToFirebase();
+        }
+
+        function handleNoteChange(id, value) {
+            appState.notes[id] = value;
+            syncToFirebase();
+        }
+
+        // --- Calculations & UI Updates ---
+        function updateCalculations() {
+            let totalItems = 0;
+            let completedItems = 0;
+
+            let sec2Total = 0, sec2Completed = 0;
+            let sec3Total = 0, sec3Completed = 0;
+
+            toolsData.forEach(g => {
+                g.items.forEach(i => {
+                    totalItems++;
+                    sec2Total++;
+                    if (appState.statuses[i.id] === 'completed') {
+                        completedItems++;
+                        sec2Completed++;
+                    }
+                });
+            });
+
+            actionPlanData.forEach(g => {
+                g.items.forEach(i => {
+                    totalItems++;
+                    sec3Total++;
+                    if (appState.statuses[i.id] === 'completed') {
+                        completedItems++;
+                        sec3Completed++;
+                    }
+                });
+            });
+
+            const percent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+            document.getElementById('totalPercent').innerText = `${percent}%`;
+            document.getElementById('totalProgressBar').style.width = `${percent}%`;
+
+            document.getElementById('sec2ProgressText').innerText = `${sec2Completed} / ${sec2Total} مكتمل`;
+            document.getElementById('sec3ProgressText').innerText = `${sec3Completed} / ${sec3Total} مكتمل`;
+        }
+
+        // --- Accordion Controls ---
+        function toggleSection(secId) {
+            const content = document.getElementById(`${secId}-content`);
+            const icon = document.getElementById(`${secId}-icon`);
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('hidden');
+                icon.style.transform = 'rotate(-90deg)';
+            }
+        }
+
+        function expandAll() {
+            ['sec1', 'sec2', 'sec3'].forEach(id => {
+                document.getElementById(`${id}-content`).classList.remove('hidden');
+                document.getElementById(`${id}-icon`).style.transform = 'rotate(0deg)';
+            });
+        }
+
+        function collapseAll() {
+            ['sec1', 'sec2', 'sec3'].forEach(id => {
+                document.getElementById(`${id}-content`).classList.add('hidden');
+                document.getElementById(`${id}-icon`).style.transform = 'rotate(-90deg)';
+            });
+        }
+    </script>
+</body>
+</html>
